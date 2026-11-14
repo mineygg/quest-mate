@@ -1,0 +1,94 @@
+NOTICES AND THIRD-PARTY LICENSES
+
+Quest Mate
+Copyright (C) 2026 mineygg
+Original project: https://github.com/mineygg/quest-mate
+
+Additional terms under section 7 of the GNU GPL v3: any copy, fork or modified version of this work, and
+any app built from it, must keep this copyright notice and the link to the original project, including in
+the legal notices shown to users. Modified versions must be marked as modified and must not be presented
+as the original Quest Mate. The name "Quest Mate", the app icon, the name "mineygg" and the application ID
+and package names com.mineygg.questmate are not licensed under the GPL: modified versions must remove them
+and use their own name, icon, application ID and package names. The copyright notice and the link to the
+original project must stay.
+
+Quest Mate is free software released under the GNU General Public License v3.0
+(see the "GNU GPL v3" tab).
+
+This app uses the following open-source components:
+
+  - AndroidX, Jetpack Compose, Material 3, WorkManager, Security Crypto, WebKit
+    (Apache License 2.0, https://www.apache.org/licenses/LICENSE-2.0)
+  - Kotlin and kotlinx.coroutines (Apache License 2.0)
+  - OkHttp (Apache License 2.0)
+  - zstd-jni, Zstandard bindings (BSD 2-Clause License, see below)
+  - Zstandard, bundled in zstd-jni (BSD License, see below; also offered under GPLv2)
+  - Material icons (Apache License 2.0)
+  - GitHub mark from Octicons (MIT License)
+
+----------------------------------------------------------------
+zstd-jni
+
+Copyright (c) 2015-present, Luben Karavelov/ All rights reserved.
+
+BSD-2-Clause License https://opensource.org/license/bsd-2-clause
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+----------------------------------------------------------------
+Zstandard
+
+BSD License
+
+For Zstandard software
+
+Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+ * Neither the name Facebook, nor Meta, nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+----------------------------------------------------------------
+
+Disclaimer: this app is unofficial and is not affiliated with, endorsed by or sponsored by Discord Inc.
+All names and trademarks belong to their respective owners.

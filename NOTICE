@@ -1,0 +1,27 @@
+Quest Mate
+Copyright (C) 2026 mineygg
+Original project: https://github.com/mineygg/quest-mate
+
+Quest Mate is free software licensed under the GNU General Public License v3.0 (see LICENSE).
+
+Additional terms under section 7 of the GNU GPL v3:
+
+  Preservation of notices (section 7(b)): any copy, fork or modified version of this work, and any app
+  built from it, must keep this copyright notice and the link to the original project above, both in the
+  source (this NOTICE file) and in the legal notices shown to users (for an app, its About or License
+  screen).
+
+  Origin (section 7(c)): modified versions must be clearly marked as modified and must not be presented
+  as the original Quest Mate.
+
+  Name, icon and identifiers (section 7(e)): the name "Quest Mate", the app icon (assets/icon.svg,
+  assets/icon_background.svg, assets/icon_foreground.svg and the launcher icon files under
+  app/src/main/res), the name "mineygg", and the application ID and package names
+  "com.mineygg.questmate" (the applicationId, the namespace and the source packages) are not licensed
+  under the GPL, and no trademark rights are granted for them. Modified versions and forks must remove
+  them and use their own name, icon, application ID and package names, and must not use them to suggest
+  that the work comes from, or is endorsed by, the original author. The copyright notice and the link to
+  the original project required above must stay.
+
+Everything else is governed by the GPL v3. Third-party components used by the app are listed in
+app/src/main/res/raw/notices.txt.
