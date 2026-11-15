@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "discord": {
-    "client_version": "1.0.9267",
-    "build_number": 668923,
-    "native_build_number": 97793,
-    "electron_version": "44.10.0",
+    "client_version": "1.0.9268",
+    "build_number": 673869,
+    "native_build_number": 98625,
+    "electron_version": "44.10.2",
     "chrome_version": "152.0.7977.169",
     "capabilities": 1767421,
     "qos_version": 31
