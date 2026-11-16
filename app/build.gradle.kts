@@ -93,6 +93,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // zstd-stream gateway compression (JNI, so the Android aar, not the jar).
     implementation("com.github.luben:zstd-jni:1.5.7-4@aar")
+    implementation("org.brotli:dec:0.1.2") // Brotli decoding for REST responses (Accept-Encoding: br)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

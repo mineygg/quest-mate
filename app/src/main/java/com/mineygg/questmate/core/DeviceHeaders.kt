@@ -55,7 +55,7 @@ object DeviceHeaders {
             val b = UserAgentMetadata.Builder()
                 .setBrandVersionList(
                     listOf(
-                        brand("Not)A;Brand", "8", "8.0.0.0"),
+                        DiscordConfig.greaseBrand(chrome.substringBefore('.').toIntOrNull() ?: 0).let { (n, v) -> brand(n, v, "$v.0.0.0") },
                         brand("Chromium", chrome.substringBefore('.'), chrome)
                     )
                 )

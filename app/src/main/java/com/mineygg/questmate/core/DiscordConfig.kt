@@ -86,20 +86,67 @@ object DiscordConfig {
         .put("gateway_connect_reasons", "AppSkeleton")
         .put("installation_id", installationId)
 
-    /** Request headers for calls that are made without being signed in. */
-    fun publicHeaders(): Map<String, String> = mapOf(
-        "Content-Type" to "application/json",
-        "User-Agent" to agent,
-        "Origin" to "https://discord.com",
-        "Referer" to "https://discord.com/channels/@me",
-        "X-Discord-Locale" to DiscordLocale.current,
-        "X-Discord-Timezone" to TimeZone.getDefault().id,
-        "X-Super-Properties" to Base64.encodeToString(props().toString().toByteArray(), Base64.NO_WRAP),
-        "sec-ch-ua" to "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"${chromeVersion.substringBefore('.')}\"",
-        "sec-ch-ua-mobile" to "?0",
-        "sec-ch-ua-platform" to "\"${DeviceProfile.CH_PLATFORM}\"",
-        "X-Debug-Options" to "bugReporterEnabled"
+    const val ORIGIN = "https://discord.com"
+    const val REFERER_HOME = "$ORIGIN/channels/@me"
+    const val REFERER_QUESTS = "$ORIGIN/quest-home"
+
+    /**
+     * Chromium's GREASE brand for a major version (152 -> "Not?A_Brand" / "24"). Same formula Chromium uses:
+     * the filler characters and the version are picked from fixed lists by the major version number.
+     */
+    fun greaseBrand(major: Int): Pair<String, String> {
+        val chars = listOf(" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_")
+        val versions = listOf("8", "99", "24")
+        val name = "Not${chars[major % chars.size]}A${chars[(major + 1) % chars.size]}Brand"
+        return name to versions[major % versions.size]
+    }
+
+    /** The Sec-CH-UA value for the configured Chrome version. */
+    val secChUa: String
+        get() {
+            val major = chromeVersion.substringBefore('.').toIntOrNull() ?: 0
+            val (brand, ver) = greaseBrand(major)
+            return "\"$brand\";v=\"$ver\", \"Chromium\";v=\"$major\""
+        }
+
+    /** Chromium reports the older IANA names for a few zones (Asia/Calcutta, not Asia/Kolkata); Android uses the new ones. */
+    private val TZ_ALIASES = mapOf(
+        "Asia/Kolkata" to "Asia/Calcutta",
+        "Asia/Kathmandu" to "Asia/Katmandu",
+        "Asia/Ho_Chi_Minh" to "Asia/Saigon",
+        "Asia/Yangon" to "Asia/Rangoon",
+        "Europe/Kyiv" to "Europe/Kiev"
     )
 
-    fun headers(token: String): Map<String, String> = mapOf("Authorization" to token) + publicHeaders()
+    val timezone: String
+        get() = TimeZone.getDefault().id.let { TZ_ALIASES[it] ?: it }
+
+    /**
+     * Headers of a same-origin fetch() from the desktop client. Accept-Encoding is added in [Http.api].
+     * Origin is only sent on non-GET requests and Content-Type only with a body, like Chromium does.
+     */
+    fun publicHeaders(method: String = "GET", referer: String = REFERER_HOME): Map<String, String> {
+        val m = linkedMapOf(
+            "Accept" to "*/*",
+            "Accept-Language" to DiscordLocale.acceptLanguage,
+            "Priority" to "u=1, i",
+            "Referer" to referer,
+            "sec-ch-ua" to secChUa,
+            "sec-ch-ua-mobile" to "?0",
+            "sec-ch-ua-platform" to "\"${DeviceProfile.CH_PLATFORM}\"",
+            "Sec-Fetch-Dest" to "empty",
+            "Sec-Fetch-Mode" to "cors",
+            "Sec-Fetch-Site" to "same-origin",
+            "User-Agent" to agent,
+            "X-Debug-Options" to "bugReporterEnabled",
+            "X-Discord-Locale" to DiscordLocale.current,
+            "X-Discord-Timezone" to timezone,
+            "X-Super-Properties" to Base64.encodeToString(props().toString().toByteArray(), Base64.NO_WRAP)
+        )
+        if (!method.equals("GET", ignoreCase = true)) m["Origin"] = ORIGIN
+        return m
+    }
+
+    fun headers(token: String, method: String, referer: String, installationId: String): Map<String, String> =
+        linkedMapOf("Authorization" to token) + publicHeaders(method, referer) + ("X-Installation-Id" to installationId)
 }

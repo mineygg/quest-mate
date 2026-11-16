@@ -6,7 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
 import org.json.JSONObject
 
 /** A non-2xx answer from Discord. [retryAfter] is set for 429, in seconds. */
@@ -16,18 +18,33 @@ class ApiException(val code: Int, val body: String, val retryAfter: Double? = nu
 }
 
 /** REST calls for one account. */
-class DiscordApi(private val token: String) {
+class DiscordApi(private val token: String, private val installationId: String) {
+
+    /** JSON body sent as plain "application/json": toRequestBody would add "; charset=utf-8", which the desktop client doesn't. */
+    private fun jsonBody(text: String): RequestBody {
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        val type = "application/json".toMediaType()
+        return object : RequestBody() {
+            override fun contentType() = type
+            override fun contentLength() = bytes.size.toLong()
+            override fun writeTo(sink: BufferedSink) {
+                sink.write(bytes)
+            }
+        }
+    }
 
     suspend fun call(method: String, path: String, body: JSONObject? = null): JSONObject? = withContext(Dispatchers.IO) {
         val rb = when {
-            body != null -> body.toString().toRequestBody("application/json".toMediaType())
+            body != null -> jsonBody(body.toString())
             method == "GET" -> null
             else -> "".toRequestBody(null)
         }
+        // The quest pages are what the client has open when it calls /quests/...
+        val referer = if (path.startsWith("/quests")) DiscordConfig.REFERER_QUESTS else DiscordConfig.REFERER_HOME
         val req = Request.Builder().url(DiscordConfig.API_BASE + path).method(method, rb).apply {
-            DiscordConfig.headers(token).forEach { (k, v) -> header(k, v) }
+            DiscordConfig.headers(token, method, referer, installationId).forEach { (k, v) -> header(k, v) }
         }.build()
-        Http.client.newCall(req).execute().use { res ->
+        Http.api.newCall(req).execute().use { res ->
             val text = res.body?.string().orEmpty()
             if (!res.isSuccessful) {
                 var retry: Double? = null

@@ -35,6 +35,16 @@ class Gateway(
     private val client = Http.client.newBuilder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .pingInterval(0, TimeUnit.MILLISECONDS)
+        .addInterceptor { chain ->
+            // OkHttp hard-codes "permessage-deflate" on WebSocket upgrades; the desktop client (Chromium) offers
+            // it with client_max_window_bits. Set WS_CHROMIUM_EXTENSIONS to false if the handshake ever fails.
+            val r = chain.request()
+            if (WS_CHROMIUM_EXTENSIONS && r.header("Upgrade").equals("websocket", ignoreCase = true)) {
+                chain.proceed(r.newBuilder().header("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits").build())
+            } else {
+                chain.proceed(r)
+            }
+        }
         .build()
 
     @Volatile private var ws: WebSocket? = null
@@ -199,6 +209,10 @@ class Gateway(
             .url("$base/?$query")
             .header("User-Agent", DiscordConfig.agent)
             .header("Origin", "https://discord.com")
+            .header("Accept-Language", DiscordLocale.acceptLanguagePrimary)
+            .header("Accept-Encoding", "gzip, deflate, br, zstd")
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache")
             .build()
         ws = client.newWebSocket(
             req,
@@ -396,5 +410,8 @@ class Gateway(
 
     private companion object {
         const val GRACE_MS = 15_000L
+
+        /** Offer "permessage-deflate; client_max_window_bits" like Chromium instead of OkHttp's plain "permessage-deflate". */
+        const val WS_CHROMIUM_EXTENSIONS = true
     }
 }

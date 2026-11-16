@@ -38,6 +38,21 @@ object DiscordLocale {
 
     val current: String get() = resolve(Locale.getDefault(), ipCountry)
 
+    /** The phone's language list in order, e.g. ["en-GB", "en-IN"]. */
+    private val languageTags: List<String>
+        get() {
+            val list = android.os.LocaleList.getDefault()
+            return (0 until list.size()).map { list.get(it).toLanguageTag() }
+                .filter { it.isNotBlank() && it != "und" }.distinct().ifEmpty { listOf(FALLBACK) }
+        }
+
+    /** Accept-Language the way Chromium writes it from the OS language list: "en-GB,en-IN;q=0.9,hi;q=0.8". */
+    val acceptLanguage: String
+        get() = languageTags.take(6).mapIndexed { i, tag -> if (i == 0) tag else "$tag;q=${(10 - i) / 10.0}" }.joinToString(",")
+
+    /** Only the first language; this is what the gateway handshake carries. */
+    val acceptLanguagePrimary: String get() = languageTags.first()
+
     /** Looks the country up (at most once a week, result kept in [Store]). Never throws; a failure keeps the old value. */
     suspend fun refreshCountry(store: Store) {
         if (ipCountry == null) ipCountry = store.ipCountry
@@ -58,7 +73,7 @@ object DiscordLocale {
         val req = Request.Builder().url(DiscordConfig.API_BASE + "/auth/location-metadata").get().apply {
             DiscordConfig.publicHeaders().forEach { (k, v) -> header(k, v) }
         }.build()
-        Http.client.newCall(req).execute().use { res ->
+        Http.api.newCall(req).execute().use { res ->
             if (!res.isSuccessful) return@use null
             JSONObject(res.body?.string().orEmpty()).optString("country_code").uppercase().takeIf { it.length == 2 }
         }

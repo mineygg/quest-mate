@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mineygg.questmate.core.ApiException
 import com.mineygg.questmate.core.DiscordApi
 import com.mineygg.questmate.core.GatewayPool
+import com.mineygg.questmate.core.InstallationId
 import com.mineygg.questmate.core.RunBus
 import com.mineygg.questmate.core.Updater
 import com.mineygg.questmate.core.WebSession
@@ -50,7 +51,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             try {
-                val me = DiscordApi(token).me()
+                val me = DiscordApi(token, InstallationId.get(getApplication<Application>(), token)).me()
                 if (me == null) {
                     done("Discord didn't answer.")
                 } else {

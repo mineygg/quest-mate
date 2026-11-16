@@ -37,7 +37,7 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
             val username = user.optString("global_name").ifBlank { user.optString("username") }
             RunBus.setUser(username)
 
-            val api = DiscordApi(token)
+            val api = DiscordApi(token, InstallationId.get(ctx, token))
             val settings = store.settings.value
             val feed = api.fetchQuests()
             val now = System.currentTimeMillis()
