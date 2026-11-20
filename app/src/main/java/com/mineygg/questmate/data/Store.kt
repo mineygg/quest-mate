@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.mineygg.questmate.core.Redactor
+import com.mineygg.questmate.core.RunBus
 import com.mineygg.questmate.core.UpdateInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class Store(ctx: Context, private val secure: SharedPreferences = createSecure(ctx)) {
     private val sp: SharedPreferences = ctx.getSharedPreferences("quest_prefs", Context.MODE_PRIVATE)
+
+    /** The log lives in a file of its own: it is far too big for SharedPreferences. */
+    private val logFile = java.io.File(ctx.filesDir, "run.log")
 
     private val _settings = MutableStateFlow(loadSettings())
     private val _profile = MutableStateFlow(loadProfile())
@@ -28,8 +33,19 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
     val disclaimerAccepted: StateFlow<Boolean> = _disclaimerAccepted.asStateFlow()
     val hasWebhook: StateFlow<Boolean> = _hasWebhook.asStateFlow()
 
+    init {
+        RunBus.verbose = _settings.value.verboseLog
+        Redactor.register(secure.getString("token", null))
+        Redactor.register(secure.getString("webhook", null))
+        Redactor.register(secure.getString("qos_token", null))
+    }
+
     val savedLog: List<String>
-        get() = sp.getString("log", "").orEmpty().split('\n').filter { it.isNotBlank() }
+        get() {
+            val text = runCatching { if (logFile.exists()) logFile.readText() else null }.getOrNull()
+                ?: sp.getString("log", "").orEmpty() // older versions kept it in preferences
+            return text.split('\n').filter { it.isNotBlank() }
+        }
 
     // ── Settings ────────────────────────────────────────────────────────────
     private fun loadSettings(): Settings {
@@ -40,7 +56,8 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
             intervalHours = sp.getInt("intervalHours", d.intervalHours).takeIf { it in RunInterval.OPTIONS } ?: d.intervalHours,
             orbsOnly = sp.getBoolean("orbsOnly", d.orbsOnly),
             notify = sp.getBoolean("notify", d.notify),
-            checkUpdates = sp.getBoolean("checkUpdates", d.checkUpdates)
+            checkUpdates = sp.getBoolean("checkUpdates", d.checkUpdates),
+            verboseLog = sp.getBoolean("verboseLog", d.verboseLog)
         )
     }
 
@@ -53,7 +70,9 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
             .putBoolean("orbsOnly", s.orbsOnly)
             .putBoolean("notify", s.notify)
             .putBoolean("checkUpdates", s.checkUpdates)
+            .putBoolean("verboseLog", s.verboseLog)
             .apply()
+        RunBus.verbose = s.verboseLog
     }
 
     // ── Account ─────────────────────────────────────────────────────────────
@@ -68,10 +87,19 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
     var qosToken: String?
         get() = secure.getString("qos_token", null)
         set(v) {
+            Redactor.register(v)
             secure.edit().apply { if (v.isNullOrEmpty()) remove("qos_token") else putString("qos_token", v) }.apply()
         }
 
+    /** The installation_id Discord issued to this install; kept across sign-outs. */
+    var installationId: String?
+        get() = sp.getString("installation_id", null)
+        set(v) {
+            sp.edit().apply { if (v.isNullOrEmpty()) remove("installation_id") else putString("installation_id", v) }.apply()
+        }
+
     fun saveAccount(token: String, profile: Profile) {
+        Redactor.register(token)
         secure.edit().putString("token", token).remove("qos_token").apply()
         sp.edit().putString("profile_id", profile.id).putString("profile_name", profile.username).apply()
         _profile.value = profile
@@ -94,6 +122,7 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
     fun webhook(): String? = secure.getString("webhook", null)
 
     fun setWebhook(url: String) {
+        Redactor.register(url)
         secure.edit().putString("webhook", url).apply()
         _hasWebhook.value = true
     }
@@ -116,7 +145,8 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
     }
 
     fun saveLog(lines: List<String>) {
-        sp.edit().putString("log", lines.takeLast(400).joinToString("\n")).apply()
+        runCatching { logFile.writeText(lines.takeLast(RunBus.MAX_LINES).joinToString("\n")) }
+        sp.edit().remove("log").apply()
     }
 
     // ── Client config & device profile (see ClientConfig, DeviceProfile) ────

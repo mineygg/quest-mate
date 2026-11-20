@@ -123,6 +123,10 @@ fun SettingsScreen(
                     vm.updateSettings { it.copy(notify = on) }
                 }
                 HorizontalDivider(color = cs.outlineVariant)
+                ToggleRow("Detailed log", "Record requests, connection steps and progress. Tokens are never logged", s.verboseLog) { on ->
+                    vm.updateSettings { it.copy(verboseLog = on) }
+                }
+                HorizontalDivider(color = cs.outlineVariant)
                 BatteryRow()
             }
         }

@@ -41,7 +41,35 @@ object Http {
 
     /** Discord REST calls: advertises gzip/deflate/br/zstd like Chromium and decodes the answer. */
     val api: OkHttpClient by lazy {
-        (if (API_COOKIES) web else client).newBuilder().addInterceptor(ContentDecoder).build()
+        (if (API_COOKIES) web else client).newBuilder().addInterceptor(RequestLog).addInterceptor(ContentDecoder).build()
+    }
+}
+
+/**
+ * Detailed log of the REST calls: method, path, status and time. Never headers and never request bodies
+ * (that is where the token lives); for an error only a short piece of the answer is kept.
+ */
+object RequestLog : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val req = chain.request()
+        val target = req.url.encodedPath + (req.url.encodedQuery?.let { "?$it" } ?: "")
+        val started = android.os.SystemClock.elapsedRealtime()
+        val res = try {
+            chain.proceed(req)
+        } catch (e: java.io.IOException) {
+            RunBus.debug("${req.method} $target failed after ${android.os.SystemClock.elapsedRealtime() - started} ms: ${e.javaClass.simpleName}")
+            throw e
+        }
+        if (RunBus.verbose) {
+            val ms = android.os.SystemClock.elapsedRealtime() - started
+            val extra = when {
+                res.code == 429 -> ", retry after ${res.header("Retry-After") ?: "?"} s"
+                !res.isSuccessful -> runCatching { ", " + res.peekBody(300).string().replace(Regex("\\s+"), " ") }.getOrDefault("")
+                else -> ""
+            }
+            RunBus.debug("${req.method} $target → ${res.code} ($ms ms)$extra")
+        }
+        return res
     }
 }
 

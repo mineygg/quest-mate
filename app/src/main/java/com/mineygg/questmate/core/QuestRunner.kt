@@ -37,10 +37,20 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
             val username = user.optString("global_name").ifBlank { user.optString("username") }
             RunBus.setUser(username)
 
-            val api = DiscordApi(token, InstallationId.get(ctx, token))
+            val api = DiscordApi(token, InstallationId.get(store, token))
             val settings = store.settings.value
             val feed = api.fetchQuests()
             val now = System.currentTimeMillis()
+            RunBus.log("Discord lists ${feed.quests.size} quest(s) for this account")
+            feed.quests.forEach { q ->
+                val t = q.task
+                RunBus.debug(
+                    "Quest \"${q.name}\": " + (t?.kind?.name ?: "unsupported") + ", " +
+                        (if (q.isEnrolled) "enrolled" else "not enrolled") +
+                        (if (t != null) ", ${t.current.toInt()}/${t.target.toInt()} s" else "") +
+                        (if (q.isComplete) ", complete" else "") + (if (q.isExpired) ", expired" else "")
+                )
+            }
             feed.accessSuspendedUntilMs?.takeIf { it > now }?.let {
                 RunBus.step("Quests are suspended for this account until ${formatTime(it)}")
                 return 0
@@ -126,11 +136,13 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
             RunBus.step("Enrolling in ${quest.name}" + (quest.rewardText?.let { " · $it" } ?: ""))
             // The enroll call answers with the new user_status (it carries enrolled_at); keep it on the quest.
             api.enroll(quest)?.let { quest.json.put("user_status", it) }
+            RunBus.debug("[${quest.name}] enrolled")
         }
         val ok = when (info.kind) {
             TaskKind.VIDEO -> runVideo(quest, info, api)
             TaskKind.GAME -> runGame(quest, info, api, gateway)
         }
+        RunBus.log("[${quest.name}] " + if (ok) "completed" else "not completed")
         if (ok) {
             completed++
             RunBus.update(quest.id) { it.copy(status = "COMPLETED", current = it.target) }
@@ -175,6 +187,7 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
                     lastSend = now
                     nextGap = 7000 + Math.random() * 2500
                     RunBus.update(quest.id) { it.copy(status = "WATCHING", current = reported) }
+                    RunBus.debug("[${quest.name}] progress ${reported.toInt()}/${info.target.toInt()} s")
                     if (result != null && !result.isNull("completed_at")) return true
                 } catch (e: CancellationException) {
                     throw e
@@ -224,6 +237,7 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
                         elapsed = if (server > 0) server else elapsed + interval / 1000.0
                         lastBeat = now
                         RunBus.update(quest.id) { it.copy(current = minOf(elapsed, it.target)) }
+                        RunBus.debug("[${quest.name}] progress ${minOf(elapsed, info.target).toInt()}/${info.target.toInt()} s")
                         if (result != null && !result.isNull("completed_at")) return true
                     } catch (e: CancellationException) {
                         throw e

@@ -13,7 +13,9 @@ data class Settings(
     /** Only do quests that pay Orbs. */
     val orbsOnly: Boolean = true,
     val notify: Boolean = true,
-    val checkUpdates: Boolean = true
+    val checkUpdates: Boolean = true,
+    /** Record requests, connection steps and progress in the log. Tokens are never logged either way. */
+    val verboseLog: Boolean = true
 )
 
 /** The Discord account that is signed in. The token itself never leaves the encrypted store. */

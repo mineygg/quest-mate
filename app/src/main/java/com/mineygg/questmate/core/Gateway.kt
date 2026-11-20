@@ -27,11 +27,17 @@ import org.json.JSONObject
 class Gateway(
     private val token: String,
     private val scope: CoroutineScope,
-    private val installationId: String,
+    private val installationId: String?,
     storedQos: String? = null,
+    /** Called with the installation_id Discord sends in READY (only when it had none, or rejected ours). */
+    private val onInstallation: (String) -> Unit = {},
     /** Called with the fresh qos_token from READY, or null when Discord turned the stored one down. */
     private val onQos: (String?) -> Unit = {}
 ) {
+    init {
+        Redactor.register(token)
+    }
+
     private val client = Http.client.newBuilder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .pingInterval(0, TimeUnit.MILLISECONDS)
@@ -60,6 +66,8 @@ class Gateway(
     @Volatile private var helloInterval = 0L
 
     @Volatile private var lastAck = 0L
+
+    @Volatile private var lastBeatSent = 0L
 
     @Volatile private var closed = false
 
@@ -133,6 +141,7 @@ class Gateway(
                 .put("application_id", appId)
                 .put("timestamps", JSONObject().put("start", System.currentTimeMillis()))
         }
+        RunBus.debug("Presence: playing $gameName")
         sendPresence()
     }
 
@@ -144,7 +153,10 @@ class Gateway(
     /** Drops every game, e.g. when a run ends while the connection stays open. */
     fun clearActivities() {
         val had = synchronized(games) { games.isNotEmpty().also { games.clear() } }
-        if (had) sendPresence()
+        if (had) {
+            RunBus.debug("Presence: cleared")
+            sendPresence()
+        }
     }
 
     private fun sendPresence() {
@@ -200,6 +212,7 @@ class Gateway(
         qosBeatSent = false
         if (!resume) bootDone = false
         val base = if (resume && resumeUrl != null) resumeUrl else DiscordConfig.GATEWAY
+        RunBus.debug("Gateway: connecting (${if (resume) "resuming the session" else "new session"})")
         // A new socket is a new zstd stream, so every connection gets its own decompression context.
         val stream = if (DiscordConfig.GATEWAY_ETF) ZstdStream() else null
         zstd?.close()
@@ -217,6 +230,10 @@ class Gateway(
         ws = client.newWebSocket(
             req,
             object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    if (myGen == gen) RunBus.debug("Gateway: socket open")
+                }
+
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     if (myGen == gen) handle(text, resume)
                 }
@@ -243,6 +260,7 @@ class Gateway(
                     if (myGen != gen) return
                     stopHeartbeat()
                     connected = false
+                    RunBus.debug("Gateway: closed ($code ${reason.ifBlank { "no reason" }})")
                     if ((code == 4001 || code == 4002) && qosHeartbeat && qosBeatSent) {
                         qosHeartbeat = false
                         RunBus.log("Discord rejected the op 40 heartbeat (code $code), falling back to op 1")
@@ -259,6 +277,7 @@ class Gateway(
                     if (myGen != gen) return
                     stopHeartbeat()
                     connected = false
+                    RunBus.debug("Gateway: connection error (${t.javaClass.simpleName}: ${t.message?.take(100)})")
                     if (!ready.isCompleted) {
                         ready.completeExceptionally(IOException(t.message ?: "Gateway connection failed", t))
                     } else {
@@ -284,6 +303,7 @@ class Gateway(
 
     private fun scheduleReconnect(resume: Boolean) {
         if (closed || !reconnecting.compareAndSet(false, true)) return
+        RunBus.log("Gateway connection lost, reconnecting" + if (resume && sessionId != null) " (resuming)" else "")
         scope.launch {
             delay(1000 + (Math.random() * 3000).toLong())
             reconnecting.set(false)
@@ -310,12 +330,18 @@ class Gateway(
                     )
                 } else {
                     val id = identify()
+                    RunBus.debug(
+                        "Gateway: HELLO, identifying (installation ID: ${if (installationId != null) "sent" else "none"}, " +
+                            "qos_token: ${if (qosToken != null) "sent" else "none"})"
+                    )
                     if (qosToken == null && !identifyLogged) {
                         identifyLogged = true
-                        RunBus.log("Identify sent without qos_token (none stored yet): " + JSONObject(id.toString()).apply { getJSONObject("d").put("token", "***") })
+                        // The token is masked here, and the log scrubs it again on the way in.
+                        RunBus.debug("Identify payload: " + JSONObject(id.toString()).apply { getJSONObject("d").put("token", "***") })
                     }
                     send(id)
                 }
+                RunBus.debug("Gateway: heartbeat every ${msg.getJSONObject("d").getLong("heartbeat_interval") / 1000} s")
                 startHeartbeat(msg.getJSONObject("d").getLong("heartbeat_interval"))
             }
             0 -> when (msg.optString("t")) { // Dispatch
@@ -324,24 +350,33 @@ class Gateway(
                     sessionId = d.optString("session_id")
                     resumeUrl = d.optString("resume_gateway_url").takeIf { it.isNotEmpty() }
                     d.optString("qos_token").takeIf { it.isNotEmpty() }?.let { onQos(it) }
+                    d.optJSONObject("apex_experiments")?.optString("installation")?.takeIf { it.isNotEmpty() }
+                        ?.let { onInstallation(it) }
                     connected = true
+                    RunBus.debug("Gateway: READY")
                     if (!ready.isCompleted) ready.complete(d.getJSONObject("user"))
                     bootSequence()
                 }
                 "RESUMED" -> {
                     connected = true
+                    RunBus.debug("Gateway: session resumed")
                     if (hbJob == null && helloInterval > 0) startHeartbeat(helloInterval)
                 }
             }
             1 -> sendHeartbeat() // server asked for a heartbeat now
-            11 -> lastAck = System.currentTimeMillis()
+            11 -> {
+                lastAck = System.currentTimeMillis()
+                if (lastBeatSent > 0) RunBus.debug("Gateway: heartbeat acknowledged (${lastAck - lastBeatSent} ms)")
+            }
             7 -> { // reconnect requested
+                RunBus.debug("Gateway: Discord asked us to reconnect")
                 stopHeartbeat()
                 runCatching { ws?.close(4000, "reconnect") }
             }
             9 -> { // invalid session
                 stopHeartbeat()
                 val canResume = msg.optBoolean("d", false)
+                RunBus.log("Gateway: session invalidated (${if (canResume) "can resume" else "starting a new one"})")
                 gen++ // ignore the close of the old socket, we reconnect ourselves
                 runCatching { ws?.close(4000, "invalid session") }
                 if (canResume) {
@@ -371,6 +406,7 @@ class Gateway(
 
     // ── heartbeat ────────────────────────────────────────────────────────────
     private fun sendHeartbeat() {
+        lastBeatSent = System.currentTimeMillis()
         val seq = lastSeq ?: JSONObject.NULL
         if (!qosHeartbeat) {
             send(JSONObject().put("op", 1).put("d", seq))
@@ -394,6 +430,7 @@ class Gateway(
             while (isActive) {
                 if (System.currentTimeMillis() - lastAck > intervalMs + GRACE_MS) {
                     // No ACK for too long: the connection is a zombie. Close it; the close handler resumes.
+                    RunBus.log("Gateway: no heartbeat answer from Discord, reconnecting")
                     runCatching { ws?.close(4000, "zombie") }
                     break
                 }

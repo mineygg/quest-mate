@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Message
+import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -112,6 +113,13 @@ private const val TOKEN_JS = """
 })()
 """
 
+/**
+ * After the sign-in the page is left alone this long, with the page fully loaded, before the token is read and
+ * used for the first time. Discord's web app does its own start-up in that time (it opens its connection and
+ * loads the account), so the app doesn't touch the account while that is still going on.
+ */
+private const val SETTLE_MS = 10_000L
+
 private val WEB_SCHEMES = setOf("http", "https", "about", "data", "blob", "javascript")
 
 /**
@@ -192,17 +200,34 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var desktop by rememberSaveable { mutableStateOf(true) }
 
-    // Once the user is past the login page, ask the page for the token every couple of seconds.
+    /** Seconds still to wait for Discord to finish loading after sign-in; 0 = done waiting, -1 = not signed in yet. */
+    var settleLeft by remember { mutableIntStateOf(-1) }
+
+    // Once the user is past the login page, wait for Discord's page to settle, then ask it for the token.
     LaunchedEffect(accepted, paste) {
         if (!accepted || paste) return@LaunchedEffect
         var lastTried = ""
+        var loggedInSince = 0L
         while (true) {
-            delay(2000)
+            delay(1000)
             val wv = webView ?: continue
             val uri = runCatching { Uri.parse(pageUrl) }.getOrNull() ?: continue
             val loggedIn = uri.host?.endsWith("discord.com") == true &&
                 uri.path.orEmpty().let { it.startsWith("/channels") || it.startsWith("/app") || it.startsWith("/library") }
-            if (!loggedIn || checking) continue
+            if (!loggedIn) {
+                loggedInSince = 0L
+                settleLeft = -1
+                continue
+            }
+            if (loggedInSince == 0L) loggedInSince = SystemClock.elapsedRealtime()
+            val waited = SystemClock.elapsedRealtime() - loggedInSince
+            // Not before the time is up and the page has finished loading.
+            if (waited < SETTLE_MS || progress < 100) {
+                settleLeft = (((SETTLE_MS - waited) + 999) / 1000).toInt().coerceAtLeast(1)
+                continue
+            }
+            settleLeft = 0
+            if (checking) continue
             wv.evaluateJavascript(TOKEN_JS) { raw ->
                 val token = raw?.trim()?.trim('"').orEmpty()
                 if (token.length > 20 && token != lastTried) {
@@ -428,7 +453,11 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
                     }
                 }
                 Text(
-                    error ?: if (checking) "Checking your sign-in…" else "Log in as usual. This closes by itself when it's done.",
+                    error ?: when {
+                        checking -> "Checking your sign-in…"
+                        settleLeft > 0 -> "Signed in. Letting Discord finish loading, this closes by itself in ${settleLeft}s. Please wait."
+                        else -> "Log in as usual. This closes by itself when it's done."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (error != null) cs.error else cs.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)

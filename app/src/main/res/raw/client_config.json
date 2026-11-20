@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "discord": {
-    "client_version": "1.0.9268",
-    "build_number": 673869,
-    "native_build_number": 98625,
+    "client_version": "1.0.9269",
+    "build_number": 677695,
+    "native_build_number": 98981,
     "electron_version": "44.10.2",
     "chrome_version": "152.0.7977.169",
     "capabilities": 1767421,

@@ -78,7 +78,7 @@ fun ActivityScreen(vm: MainViewModel, pad: PaddingValues) {
             item { TextButton(onClick = vm::clearHistory, modifier = Modifier.fillMaxWidth()) { Text("Clear history") } }
         }
 
-        item { TechnicalCard(showTech, onToggle = { showTech = !showTech }, log = log) }
+        item { TechnicalCard(showTech, onToggle = { showTech = !showTech }, log = log, onClear = vm::clearLog) }
     }
 }
 
@@ -144,7 +144,7 @@ private fun RecordCard(r: QuestRecord) {
 }
 
 @Composable
-private fun TechnicalCard(expanded: Boolean, onToggle: () -> Unit, log: List<String>) {
+private fun TechnicalCard(expanded: Boolean, onToggle: () -> Unit, log: List<String>, onClear: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val clipboard = LocalClipboardManager.current
 
@@ -155,7 +155,7 @@ private fun TechnicalCard(expanded: Boolean, onToggle: () -> Unit, log: List<Str
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Technical details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("Raw log, for troubleshooting", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                Text("Raw log (${log.size} lines), for troubleshooting", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
             Text(if (expanded) "Hide" else "Show", style = MaterialTheme.typography.labelLarge, color = cs.primary)
         }
@@ -171,13 +171,19 @@ private fun TechnicalCard(expanded: Boolean, onToggle: () -> Unit, log: List<Str
                         .background(cs.surfaceVariant)
                         .padding(12.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        log.takeLast(120).forEach { line ->
-                            Text(line, color = cs.onSurface, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp)
-                        }
-                    }
+                    // One Text for the whole tail: hundreds of separate Texts would make this card slow to draw.
+                    Text(
+                        log.takeLast(400).joinToString("\n"),
+                        color = cs.onSurface,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
                 }
-                TextButton(onClick = { clipboard.setText(AnnotatedString(log.joinToString("\n"))) }) { Text("Copy log") }
+                Row {
+                    TextButton(onClick = { clipboard.setText(AnnotatedString(log.joinToString("\n"))) }) { Text("Copy log") }
+                    TextButton(onClick = onClear) { Text("Clear log") }
+                }
             }
         }
     }

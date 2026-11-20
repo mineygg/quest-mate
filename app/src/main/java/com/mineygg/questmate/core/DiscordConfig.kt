@@ -65,7 +65,7 @@ object DiscordConfig {
         .put("client_app_state", "focused")
 
     /** Properties for the gateway identify only (the REST headers keep using [props]). */
-    fun gatewayProps(installationId: String): JSONObject = JSONObject()
+    fun gatewayProps(installationId: String?): JSONObject = JSONObject()
         .device(DeviceProfile.current)
         .put("browser", "Discord Client")
         .put("release_channel", "stable")
@@ -84,7 +84,7 @@ object DiscordConfig {
         .put("client_app_state", "focused")
         .put("is_fast_connect", false)
         .put("gateway_connect_reasons", "AppSkeleton")
-        .put("installation_id", installationId)
+        .apply { if (installationId != null) put("installation_id", installationId) }
 
     const val ORIGIN = "https://discord.com"
     const val REFERER_HOME = "$ORIGIN/channels/@me"
@@ -147,6 +147,7 @@ object DiscordConfig {
         return m
     }
 
-    fun headers(token: String, method: String, referer: String, installationId: String): Map<String, String> =
-        linkedMapOf("Authorization" to token) + publicHeaders(method, referer) + ("X-Installation-Id" to installationId)
+    fun headers(token: String, method: String, referer: String, installationId: String?): Map<String, String> =
+        linkedMapOf("Authorization" to token) + publicHeaders(method, referer) +
+            (if (installationId != null) mapOf("X-Installation-Id" to installationId) else emptyMap())
 }

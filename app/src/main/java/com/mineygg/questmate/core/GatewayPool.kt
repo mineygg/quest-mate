@@ -56,7 +56,16 @@ object GatewayPool {
             return@withLock gateway to user
         }
         drop()
-        val fresh = Gateway(token, scope, InstallationId.get(ctx, token), store.qosToken) { store.qosToken = it }
+        val fresh = Gateway(
+            token,
+            scope,
+            InstallationId.get(store, token),
+            store.qosToken,
+            onInstallation = {
+                store.installationId = it
+                RunBus.log("Discord issued a new installation ID in READY")
+            }
+        ) { store.qosToken = it }
         val me = fresh.login() // closes itself if it fails
         current = fresh
         currentToken = token

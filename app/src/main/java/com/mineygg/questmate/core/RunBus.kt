@@ -23,6 +23,13 @@ data class QuestProgress(
 
 /** Live state of the current run, shared between the worker and the UI. */
 object RunBus {
+    /** Lines kept in memory and on disk. */
+    const val MAX_LINES = 3000
+    private const val MAX_LINE_CHARS = 600
+
+    /** Detailed logging: [debug] lines are recorded only while this is on (Settings → Detailed log). */
+    @Volatile var verbose = true
+
     private val _running = MutableStateFlow(false)
     private val _status = MutableStateFlow("")
     private val _user = MutableStateFlow<String?>(null)
@@ -41,7 +48,7 @@ object RunBus {
         _status.value = "Starting…"
         _user.value = null
         _quests.value = emptyList()
-        _log.update { (it + "──── Quest run · $trigger · ${LocalTime.now().format(fmt)} ────").takeLast(600) }
+        _log.update { (it + "──── Quest run · $trigger · ${LocalTime.now().format(fmt)} ────").takeLast(MAX_LINES) }
     }
 
     fun end() {
@@ -50,12 +57,22 @@ object RunBus {
     }
 
     fun restore(lines: List<String>) {
-        if (_log.value.isEmpty()) _log.value = lines
+        if (_log.value.isEmpty()) _log.value = lines.map(Redactor::scrub).takeLast(MAX_LINES)
     }
 
+    fun clear() {
+        _log.value = emptyList()
+    }
+
+    /** Every message is scrubbed of tokens and other secrets before it is stored. */
     fun log(msg: String) {
-        val line = "${LocalTime.now().format(fmt)}  $msg"
-        _log.update { (it + line).takeLast(600) }
+        val line = "${LocalTime.now().format(fmt)}  ${Redactor.scrub(msg).take(MAX_LINE_CHARS)}"
+        _log.update { (it + line).takeLast(MAX_LINES) }
+    }
+
+    /** A detail line ("· ..."), kept only when detailed logging is on. */
+    fun debug(msg: String) {
+        if (verbose) log("· $msg")
     }
 
     /** Sets the one-line status shown on the Home screen and logs it. */

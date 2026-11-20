@@ -37,6 +37,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── Runs ────────────────────────────────────────────────────────────────
+    fun clearLog() {
+        RunBus.clear()
+        store.saveLog(emptyList())
+    }
+
     fun runNow() = Scheduler.runNow(getApplication(), "manual")
 
     fun stop() = Scheduler.stop(getApplication())
@@ -51,7 +56,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             try {
-                val me = DiscordApi(token, InstallationId.get(getApplication<Application>(), token)).me()
+                val me = DiscordApi(token, InstallationId.get(store, token)).me()
                 if (me == null) {
                     done("Discord didn't answer.")
                 } else {

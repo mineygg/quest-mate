@@ -18,7 +18,10 @@ class ApiException(val code: Int, val body: String, val retryAfter: Double? = nu
 }
 
 /** REST calls for one account. */
-class DiscordApi(private val token: String, private val installationId: String) {
+class DiscordApi(private val token: String, private val installationId: String?) {
+    init {
+        Redactor.register(token)
+    }
 
     /** JSON body sent as plain "application/json": toRequestBody would add "; charset=utf-8", which the desktop client doesn't. */
     private fun jsonBody(text: String): RequestBody {
@@ -56,6 +59,10 @@ class DiscordApi(private val token: String, private val installationId: String) 
             if (res.code == 204 || text.isBlank()) null else JSONObject(text)
         }
     }
+
+    /** Asks Discord for an installation_id. Without one in the headers, the answer carries a new one. */
+    suspend fun fetchInstallation(): String? =
+        call("GET", "/apex/experiments?surface=2")?.optString("installation")?.takeIf { it.isNotBlank() }
 
     /** Checks the token and returns who it belongs to. */
     suspend fun me(): Profile? {
