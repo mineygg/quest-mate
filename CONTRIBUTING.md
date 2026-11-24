@@ -7,4 +7,4 @@
 Yes! While code contributions are closed, feedback is always welcome. If you run into a bug or have an idea for an improvement, please open an **Issue** so I can look into it.
 
 ### Can I fork the repository and make my own changes?
-Yes. Under the **GNU GPL v3** license, you are free to fork, modify, and distribute your own version of the project, provided any derivative work remains open source under the same license. However, external changes will not be merged back into this official repository.
+Yes. You are free to fork, modify, and distribute your own version of the project in accordance with the terms and conditions of the **GNU GPL v3** license see the [LICENSE](LICENSE)file for full details. However, external changes will not be merged back into this official repository.
