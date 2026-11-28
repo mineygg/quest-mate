@@ -78,7 +78,7 @@ object RequestLog : Interceptor {
  * (gzip, deflate, br, zstd) the server may answer in any of the four, so they are all decoded here.
  */
 object ContentDecoder : Interceptor {
-    private const val ACCEPT = "gzip, deflate, br, zstd"
+    private val ACCEPT: String get() = ClientConfig.current.static.acceptEncoding
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val req = chain.request()

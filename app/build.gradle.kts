@@ -14,7 +14,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (findProperty("questmateVersionCode") as String?)?.toIntOrNull() ?: 1
-        versionName = (findProperty("questmateVersionName") as String?) ?: "1.1.0"
+        versionName = (findProperty("questmateVersionName") as String?) ?: "1.2.0"
     }
 
     // Release signing key comes from the environment (CI secrets). Without it, builds fall back to the

@@ -23,6 +23,7 @@ object DiscordConfig {
     private val nativeBuild: Int get() = client.nativeBuild
     private val electronVersion: String get() = client.electronVersion
     val chromeVersion: String get() = client.chromeVersion
+    private val static: ClientConfig.Static get() = ClientConfig.current.static
 
     /** Gateway identify capabilities bitfield. */
     val capabilities: Int get() = client.capabilities
@@ -31,8 +32,8 @@ object DiscordConfig {
     val qosVersion: Int get() = client.qosVersion
 
     val agent: String
-        get() = "Mozilla/5.0 (${DeviceProfile.UA_PLATFORM}) AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "discord/$clientVersion Chrome/$chromeVersion Electron/$electronVersion Safari/537.36"
+        get() = "Mozilla/5.0 (${static.uaPlatform}) AppleWebKit/${static.webkit} (KHTML, like Gecko) " +
+            "discord/$clientVersion Chrome/$chromeVersion Electron/$electronVersion Safari/${static.safari}"
 
     // One launch per app process, like one Discord window.
     private val launchId = UUID.randomUUID().toString()
@@ -50,7 +51,7 @@ object DiscordConfig {
     fun props(): JSONObject = JSONObject()
         .device(DeviceProfile.current)
         .put("browser", "Discord Client")
-        .put("release_channel", "stable")
+        .put("release_channel", static.releaseChannel)
         .put("client_version", clientVersion)
         .put("system_locale", DiscordLocale.current)
         .put("has_client_mods", false)
@@ -68,7 +69,7 @@ object DiscordConfig {
     fun gatewayProps(installationId: String?): JSONObject = JSONObject()
         .device(DeviceProfile.current)
         .put("browser", "Discord Client")
-        .put("release_channel", "stable")
+        .put("release_channel", static.releaseChannel)
         .put("client_version", clientVersion)
         .put("os_version_is_release", true)
         .put("os_build_revision", DeviceProfile.current.osBuildRevision)
@@ -129,7 +130,7 @@ object DiscordConfig {
         val m = linkedMapOf(
             "Accept" to "*/*",
             "Accept-Language" to DiscordLocale.acceptLanguage,
-            "Priority" to "u=1, i",
+            "Priority" to static.priority,
             "Referer" to referer,
             "sec-ch-ua" to secChUa,
             "sec-ch-ua-mobile" to "?0",
@@ -138,7 +139,7 @@ object DiscordConfig {
             "Sec-Fetch-Mode" to "cors",
             "Sec-Fetch-Site" to "same-origin",
             "User-Agent" to agent,
-            "X-Debug-Options" to "bugReporterEnabled",
+            "X-Debug-Options" to static.debugOptions,
             "X-Discord-Locale" to DiscordLocale.current,
             "X-Discord-Timezone" to timezone,
             "X-Super-Properties" to Base64.encodeToString(props().toString().toByteArray(), Base64.NO_WRAP)

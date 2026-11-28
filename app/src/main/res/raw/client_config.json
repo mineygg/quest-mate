@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "0.0.7",
+  "version": "0.0.8",
   "discord": {
     "client_version": "1.0.9270",
     "build_number": 681709,
@@ -9,6 +9,15 @@
     "chrome_version": "152.0.7977.169",
     "capabilities": 1767421,
     "qos_version": 31
+  },
+  "static": {
+    "webkit_version": "537.36",
+    "safari_version": "537.36",
+    "ua_platform": "Windows NT 10.0; Win64; x64",
+    "release_channel": "stable",
+    "priority": "u=1, i",
+    "accept_encoding": "gzip, deflate, br, zstd",
+    "debug_options": "bugReporterEnabled"
   },
   "windows": [
     {

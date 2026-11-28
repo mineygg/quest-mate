@@ -44,6 +44,9 @@ No local Gradle/SDK? Push this folder to a GitHub repo and run the **Build APK**
   The app bundles that file and, before each run (at most every 6 h), downloads the copy on this repo's `main`
   branch. It switches to the download only if it is valid, has the same schema and a higher `version`; otherwise it
   keeps the cached or bundled values. To publish new values: edit the file, raise `version`, push to `main`.
+  An optional `"static"` section (UA WebKit/Safari tokens, platform token, `priority`, `accept_encoding`,
+  `debug_options`, `release_channel`) falls back to built-in defaults when a key is missing, so adding or changing
+  it needs no schema bump.
   Raise `schema` only for a structure change that old apps can't read. A version can't be lowered once published:
   fix a bad file with a still higher version. `core/ClientConfig.kt` has the rules, `core/DiscordConfig.kt` and
   `core/DeviceProfile.kt` read the values.

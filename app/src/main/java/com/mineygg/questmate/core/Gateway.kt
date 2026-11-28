@@ -223,7 +223,7 @@ class Gateway(
             .header("User-Agent", DiscordConfig.agent)
             .header("Origin", "https://discord.com")
             .header("Accept-Language", DiscordLocale.acceptLanguagePrimary)
-            .header("Accept-Encoding", "gzip, deflate, br, zstd")
+            .header("Accept-Encoding", ClientConfig.current.static.acceptEncoding)
             .header("Cache-Control", "no-cache")
             .header("Pragma", "no-cache")
             .build()

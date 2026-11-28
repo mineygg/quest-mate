@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Message
-import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -81,6 +80,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.mineygg.questmate.MainViewModel
 import com.mineygg.questmate.core.DeviceHeaders
+import com.mineygg.questmate.core.WebHeaders
 import kotlinx.coroutines.delay
 
 private const val LOGIN_URL = "https://discord.com/login"
@@ -113,13 +113,6 @@ private const val TOKEN_JS = """
 })()
 """
 
-/**
- * After the sign-in the page is left alone this long, with the page fully loaded, before the token is read and
- * used for the first time. Discord's web app does its own start-up in that time (it opens its connection and
- * loads the account), so the app doesn't touch the account while that is still going on.
- */
-private const val SETTLE_MS = 10_000L
-
 private val WEB_SCHEMES = setOf("http", "https", "about", "data", "blob", "javascript")
 
 /**
@@ -146,6 +139,7 @@ private fun configure(wv: WebView, cm: CookieManager, desktop: Boolean) {
             wv.tag = "ds"
         }
     }
+    WebHeaders.install(wv, desktop)
     if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
         WebSettingsCompat.setRequestedWithHeaderOriginAllowList(wv.settings, emptySet())
     }
@@ -200,33 +194,25 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var desktop by rememberSaveable { mutableStateOf(true) }
 
-    /** Seconds still to wait for Discord to finish loading after sign-in; 0 = done waiting, -1 = not signed in yet. */
-    var settleLeft by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(Unit) { vm.prepareLoginInstallation() }
 
-    // Once the user is past the login page, wait for Discord's page to settle, then ask it for the token.
+    /** True from the moment the page is past the login screen until the token has been read. */
+    var signedIn by remember { mutableStateOf(false) }
+
+    // Once the user is past the login page and the page has loaded, ask it for the token. No cooldown: the web
+    // client's gateway connection is blocked (WebHeaders), so there is no start-up to wait for.
     LaunchedEffect(accepted, paste) {
         if (!accepted || paste) return@LaunchedEffect
         var lastTried = ""
-        var loggedInSince = 0L
         while (true) {
             delay(1000)
             val wv = webView ?: continue
             val uri = runCatching { Uri.parse(pageUrl) }.getOrNull() ?: continue
             val loggedIn = uri.host?.endsWith("discord.com") == true &&
                 uri.path.orEmpty().let { it.startsWith("/channels") || it.startsWith("/app") || it.startsWith("/library") }
-            if (!loggedIn) {
-                loggedInSince = 0L
-                settleLeft = -1
-                continue
-            }
-            if (loggedInSince == 0L) loggedInSince = SystemClock.elapsedRealtime()
-            val waited = SystemClock.elapsedRealtime() - loggedInSince
-            // Not before the time is up and the page has finished loading.
-            if (waited < SETTLE_MS || progress < 100) {
-                settleLeft = (((SETTLE_MS - waited) + 999) / 1000).toInt().coerceAtLeast(1)
-                continue
-            }
-            settleLeft = 0
+            signedIn = loggedIn
+            // Only once the page has finished loading.
+            if (!loggedIn || progress < 100) continue
             if (checking) continue
             wv.evaluateJavascript(TOKEN_JS) { raw ->
                 val token = raw?.trim()?.trim('"').orEmpty()
@@ -355,6 +341,9 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
                                             val child = WebView(parent.context)
                                             configure(child, cm, desktop)
                                             child.webViewClient = object : WebViewClient() {
+                                                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? =
+                                                    request?.let { WebHeaders.intercept(view, it) }
+
                                                 override fun shouldOverrideUrlLoading(v: WebView?, r: WebResourceRequest?) =
                                                     blockAppLink(v, r)
                                             }
@@ -371,6 +360,9 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
                                         }
                                     }
                                     webViewClient = object : WebViewClient() {
+                                        override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? =
+                                            request?.let { WebHeaders.intercept(view, it) }
+
                                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) =
                                             blockAppLink(view, request)
 
@@ -455,7 +447,7 @@ fun LoginScreen(vm: MainViewModel, onClose: () -> Unit) {
                 Text(
                     error ?: when {
                         checking -> "Checking your sign-in…"
-                        settleLeft > 0 -> "Signed in. Letting Discord finish loading, this closes by itself in ${settleLeft}s. Please wait."
+                        signedIn -> "Signed in. Finishing up, this closes by itself. Please wait."
                         else -> "Log in as usual. This closes by itself when it's done."
                     },
                     style = MaterialTheme.typography.bodySmall,

@@ -24,8 +24,8 @@ object DeviceHeaders {
     private var realChrome: String? = null
 
     private val fallbackUa: String
-        get() = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/${DiscordConfig.chromeVersion} Mobile Safari/537.36"
+        get() = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/${ClientConfig.current.static.webkit} (KHTML, like Gecko) " +
+            "Chrome/${DiscordConfig.chromeVersion} Mobile Safari/${ClientConfig.current.static.safari}"
 
     /** This phone's browser identity; before [init] (or if it can't be read) a typical Pixel on the config's Chrome. */
     private val phoneUa: String get() = realUa ?: fallbackUa
@@ -42,7 +42,9 @@ object DeviceHeaders {
 
     fun userAgent(desktop: Boolean): String =
         if (desktop) {
-            "Mozilla/5.0 (${DeviceProfile.UA_PLATFORM}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chrome Safari/537.36"
+            ClientConfig.current.static.let {
+                "Mozilla/5.0 (${it.uaPlatform}) AppleWebKit/${it.webkit} (KHTML, like Gecko) Chrome/$chrome Safari/${it.safari}"
+            }
         } else {
             phoneUa
         }

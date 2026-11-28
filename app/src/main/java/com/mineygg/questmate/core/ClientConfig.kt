@@ -28,8 +28,26 @@ data class ClientConfig(
     /** Version of the values, "major.minor.patch". Only a higher one replaces the current one. */
     val version: String,
     val discord: DiscordClient,
-    val windows: List<WindowsFamily>
+    val windows: List<WindowsFamily>,
+    /** Optional "static" section: values that change rarely. Missing keys use the defaults, so no schema bump. */
+    val static: Static = Static()
 ) {
+    /**
+     * Values of the User-Agent and the request headers that stay the same for years (Chromium froze the WebKit and
+     * Safari tokens and the platform token), but that are better fixed in a file than in a release when they do move.
+     */
+    data class Static(
+        val webkit: String = "537.36",
+        val safari: String = "537.36",
+        /** The platform token of the UA, for example Windows NT 10.0; Win64; x64. */
+        val uaPlatform: String = "Windows NT 10.0; Win64; x64",
+        val releaseChannel: String = "stable",
+        val priority: String = "u=1, i",
+        /** Only gzip, deflate, br and zstd: those are the four [ContentDecoder] can read. */
+        val acceptEncoding: String = "gzip, deflate, br, zstd",
+        val debugOptions: String = "bugReporterEnabled"
+    )
+
     data class DiscordClient(
         val clientVersion: String,
         val buildNumber: Int,
@@ -57,6 +75,12 @@ data class ClientConfig(
 
         private val SEMVER = Regex("""\d{1,6}\.\d{1,6}\.\d{1,6}""")
         private val DOTTED = Regex("""\d{1,6}(\.\d{1,6}){1,3}""")
+        private val TOKEN_VERSION = Regex("""\d{1,4}\.\d{1,4}""")
+        private val UA_PLATFORM = Regex("""[A-Za-z0-9 ._;()-]{1,80}""")
+        private val CHANNEL = Regex("""[a-z]{1,16}""")
+        private val PRIORITY = Regex("""[a-z0-9=, ]{1,20}""")
+        private val DEBUG_OPTIONS = Regex("""[A-Za-z, ]{1,60}""")
+        private val CODINGS = setOf("gzip", "deflate", "br", "zstd")
 
         @Volatile
         private var active: ClientConfig? = null
@@ -135,10 +159,31 @@ data class ClientConfig(
                         revisions = (0 until revs.length()).map { j -> revs.getInt(j).takeIf { it in 0..99999 } ?: return null }
                     )
                 }
-                ClientConfig(SUPPORTED_SCHEMA, version, discord, windows)
+                val static = o.optJSONObject("static")?.let { parseStatic(it) ?: return null } ?: Static()
+                ClientConfig(SUPPORTED_SCHEMA, version, discord, windows, static)
             } catch (e: Exception) {
                 null
             }
+        }
+
+        /** A missing key keeps its default; a key that is present but malformed makes the whole file invalid. */
+        private fun parseStatic(o: JSONObject): Static? {
+            val d = Static()
+            fun str(key: String, default: String, ok: (String) -> Boolean): String? {
+                if (!o.has(key)) return default
+                return o.optString(key, "").takeIf { ok(it) }
+            }
+            return Static(
+                webkit = str("webkit_version", d.webkit) { TOKEN_VERSION.matches(it) } ?: return null,
+                safari = str("safari_version", d.safari) { TOKEN_VERSION.matches(it) } ?: return null,
+                uaPlatform = str("ua_platform", d.uaPlatform) { UA_PLATFORM.matches(it) } ?: return null,
+                releaseChannel = str("release_channel", d.releaseChannel) { CHANNEL.matches(it) } ?: return null,
+                priority = str("priority", d.priority) { PRIORITY.matches(it) } ?: return null,
+                acceptEncoding = str("accept_encoding", d.acceptEncoding) { v ->
+                    v.split(',').map { it.trim() }.let { l -> l.isNotEmpty() && l.all { it in CODINGS } }
+                } ?: return null,
+                debugOptions = str("debug_options", d.debugOptions) { DEBUG_OPTIONS.matches(it) } ?: return null
+            )
         }
 
         private fun parseVersion(v: String): List<Int>? {

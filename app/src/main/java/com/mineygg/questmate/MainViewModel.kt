@@ -9,6 +9,7 @@ import com.mineygg.questmate.core.GatewayPool
 import com.mineygg.questmate.core.InstallationId
 import com.mineygg.questmate.core.RunBus
 import com.mineygg.questmate.core.Updater
+import com.mineygg.questmate.core.WebHeaders
 import com.mineygg.questmate.core.WebSession
 import com.mineygg.questmate.core.Webhook
 import com.mineygg.questmate.data.Settings
@@ -37,6 +38,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── Runs ────────────────────────────────────────────────────────────────
+    /** Login screen opened: have an installation_id ready for the WebView's API requests (X-Installation-Id). */
+    fun prepareLoginInstallation() {
+        WebHeaders.installationId = store.installationId
+        WebHeaders.onInstallation = { id -> if (store.installationId == null) store.installationId = id }
+        if (store.installationId == null) {
+            viewModelScope.launch {
+                InstallationId.getForLogin(store)?.let { WebHeaders.installationId = it }
+            }
+        }
+    }
+
     fun clearLog() {
         RunBus.clear()
         store.saveLog(emptyList())

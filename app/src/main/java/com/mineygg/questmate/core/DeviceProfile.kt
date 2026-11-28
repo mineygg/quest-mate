@@ -32,7 +32,6 @@ data class DeviceProfile(
     companion object {
         const val OS_NAME = "Windows"
         const val ARCH = "x64"
-        const val UA_PLATFORM = "Windows NT 10.0; Win64; x64" // frozen by Chrome: Win10 and Win11 look the same
         const val CH_PLATFORM = "Windows"
         const val CH_ARCH = "x86" // client-hint name for x64 CPUs
         const val CH_BITNESS = 64
