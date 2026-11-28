@@ -1,6 +1,7 @@
 package com.mineygg.questmate.core
 
 import com.mineygg.questmate.data.Profile
+import com.mineygg.questmate.data.userDisplayName
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -67,8 +68,7 @@ class DiscordApi(private val token: String, private val installationId: String?)
     /** Checks the token and returns who it belongs to. */
     suspend fun me(): Profile? {
         val o = call("GET", "/users/@me") ?: return null
-        val name = o.optString("global_name").ifBlank { o.optString("username") }
-        return Profile(o.getString("id"), name)
+        return Profile(o.getString("id"), o.userDisplayName())
     }
 
     /** The quest list, plus the times until which Discord blocks enrolling or all quest access (null = not blocked). */

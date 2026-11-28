@@ -21,6 +21,15 @@ data class Settings(
 /** The Discord account that is signed in. The token itself never leaves the encrypted store. */
 data class Profile(val id: String, val username: String)
 
+/**
+ * The name to show for a Discord user object: the first usable name field, else the id.
+ * JSON nulls are skipped explicitly, because optString turns them into the text "null".
+ */
+fun JSONObject.userDisplayName(): String =
+    listOf("global_name", "display_name", "nick", "username", "name", "id")
+        .firstNotNullOfOrNull { key -> if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() } }
+        .orEmpty()
+
 /** One finished quest, for the Activity tab. */
 data class QuestRecord(val at: Long, val user: String, val name: String, val reward: String?) {
     fun toJson(): JSONObject = JSONObject()

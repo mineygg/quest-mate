@@ -3,6 +3,7 @@ package com.mineygg.questmate.core
 import android.content.Context
 import com.mineygg.questmate.data.QuestRecord
 import com.mineygg.questmate.data.Store
+import com.mineygg.questmate.data.userDisplayName
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -34,7 +35,7 @@ class QuestRunner(private val ctx: Context, private val store: Store) {
             DiscordLocale.refreshCountry(store) // cached for a week; fills in a missing region of the phone's locale
             // Reuses the connection from a recent run if it is still open.
             val (gateway, user) = GatewayPool.acquire(ctx, store, token)
-            val username = user.optString("global_name").ifBlank { user.optString("username") }
+            val username = user.userDisplayName()
             RunBus.setUser(username)
 
             val api = DiscordApi(token, InstallationId.get(store, token))

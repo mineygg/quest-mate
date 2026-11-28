@@ -78,7 +78,9 @@ class Store(ctx: Context, private val secure: SharedPreferences = createSecure(c
     // ── Account ─────────────────────────────────────────────────────────────
     private fun loadProfile(): Profile? {
         val id = sp.getString("profile_id", null) ?: return null
-        return Profile(id, sp.getString("profile_name", "").orEmpty())
+        // Older versions could save a blank name or the text "null"; show the id instead.
+        val name = sp.getString("profile_name", null)?.takeIf { it.isNotBlank() && it != "null" } ?: id
+        return Profile(id, name)
     }
 
     val token: String? get() = secure.getString("token", null)
